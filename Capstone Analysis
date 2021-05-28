@@ -1,0 +1,269 @@
+Data Capstone ;
+set '/folders/myfolders/Capstone/stephen.sas7bdat';
+run;
+
+PROC SORT data= work.capstone;
+by sid;
+run;
+
+Proc Sort data= capstone.thc;
+by sid;
+run;
+
+Data work.Cannabis;
+Merge work.capstone
+capstone.thc; 
+by sid;
+run;
+
+data work.cannabis;
+set work.cannabis;
+IF linoleoyl_ethanolamide__anandami = ' ' THEN linoleoyl_ethanolamide__anandami = '0';
+else if linoleoyl_ethanolamide__anandami = 'NA' then linoleoyl_ethanolamide__anandami = '0';
+run;
+
+data work.cannabis;
+set work.cannabis;
+IF THC_carboxylic_acid = ' ' THEN THC_carboxylic_acid = '0';
+else if THC_carboxylic_acid = 'NA' then THC_carboxylic_acid = '0';
+run;
+
+data work.cannabis;
+set work.cannabis;
+IF THC_carboxylic_acid_glucuronide = ' ' THEN THC_carboxylic_acid_glucuronide = '0';
+else if THC_carboxylic_acid_glucuronide = 'NA' then THC_carboxylic_acid_glucuronide = '0';
+run;
+
+data work.cannabis;
+set work.cannabis;
+IF THC_carboxylic_acid_glucuronide = '0' AND THC_carboxylic_acid = '0' AND linoleoyl_ethanolamide__anandami = '0'
+THEN cannabis = 0;
+ELSE cannabis = 1;
+RUN;
+
+Data work.cannabis (drop= THC_carboxylic_acid_glucuronide THC_carboxylic_acid linoleoyl_ethanolamide__anandami);
+set work.cannabis;
+run;
+
+PROC FORMAT;
+	Value cannabis
+	1 = 'Uses Cannabis'
+	2 = 'No Cannabis';
+	run;
+data work.cannabis;
+set work.cannabis;
+IF cohort = '' THEN Delete;
+RUN;
+
+PROC SORT DAta= work.cannabis;
+by cannabis;
+run;
+
+proc means data= work.cannabis;
+run;
+
+
+
+
+
+Data work.cannabis (drop= gender);
+set work.cannabis;
+sex = input(gender, 8.);
+run;
+
+PROC freq DATA= WORK.cannabis;
+	tables sex *cannabis /chisq;
+RUN;
+
+PROC freq DATA= WORK.cannabis;
+	tables race *cannabis /chisq;
+RUN;
+PROC SORT DATA= Cannabis;
+By Cannabis;
+RUN; 
+
+PROC MEANS DATA= WORK.cannabis;
+	*By FEV1_FVC_Post_P1;
+	*CLASS cannabis;
+	*FREQ FEV1_FVC_Post_P1;
+RUN;
+
+PROC freq DATA= WORK.cannabis;
+	tables SmokCigNow_P1 *cannabis /chisq;
+RUN;
+
+PROC freq DATA= WORK.cannabis;
+	tables ATS_PackYears_P1 *cannabis /chisq;
+RUN;
+	
+DATA WORK.COUGH;
+SET WORK.CANNABIS;
+	IF HAVECOUGH_P1 = '.' THEN 	DELETE;
+	RUN;
+DATA WORK.COUGH;
+SET WORK.COUGH;
+	IF HAVECOUGH_P2 = '.' THEN 	DELETE;
+	RUN;
+DATA WORK.COUGH;
+SET WORK.COUGH;
+	IF HAVECOUGH_P3 = '.' THEN 	DELETE;
+	RUN;
+	
+DATA WORK.COUGH;
+SET WORK.COUGH;
+	IF HAVECOUGH_P1 = '0' AND HAVECOUGH_P2 = '0' AND HAVECOUGH_P3 = '0' THEN COUGH = 0;
+	ELSE COUGH = 1;
+	RUN;
+
+DATA WORK.Phlegm;
+SET WORK.CANNABIS;
+	IF HAVEPhlegm_P1 = '.' THEN 	DELETE;
+	RUN;
+DATA WORK.Phlegm;
+SET WORK.Phlegm;
+	IF HAVEPhlegm_P2 = '.' THEN 	DELETE;
+	RUN;
+DATA WORK.Phlegm;
+SET WORK.Phlegm;
+	IF HAVEPhlegm_P3 = '.' THEN 	DELETE;
+	RUN;
+	
+
+	
+DATA WORK.Phlegm;
+SET WORK.Phlegm;
+	IF HAVEPhlegm_P1 = '0' AND HAVEPhlegm_P2 = '0' AND HAVEPhlegm_P1 = '0' THEN Phlegm = 0;
+	ELSE Phlegm = 1;
+	RUN;
+
+Data work.FEV;
+Set work.cannabis;
+IF FEV1_POST_P3 = "." THEN Delete;
+RUN;
+
+Data work.FEV;
+set work.FEV;
+ FEVDIF = FEV1_POST_P1 - FEV1_POST_P3;
+ RUN;
+
+*Does Cannabis use exacerbate pulmonary symptoms 
+(cough, phlegm production, MMRC, SGRQ symptom score) in patients with COPD?
+
+Cough -if ever cough yes- then OR of that
+Phlegm- if ever yes- then OR that
+SGRQ- avg across all 3 and see that;
+TITLE "Cough x Cannabis Use";
+
+PROC SORT DATA=work.COUGH;
+BY cannabis;
+RUN;
+PROC MEANS DATA=work.COUGH;
+BY cannabis;
+VAR HaveCough_P1 HaveCough_P2 HaveCough_P3;
+RUN;
+
+PROC GLM DATA=work.cannabis;
+CLASS Cannabis;
+MODEL HaveCough_P1 HaveCough_P2 HaveCough_P3 = Cannabis;
+REPEATED Cough 3  POLYNOMIAL / PRINTE SUMMARY;
+RUN;
+
+PROC FREQ Data= work.cOUGH;
+	FORMAT Cannabis;
+	TABLE cannabis * COUGH / missing chisq relrisk;
+	RUN;
+
+*Odds ratio of cough is 0.8811 with 95% confidence interval of 0.70 to 1.10 not significant (p=0.2717);
+
+*****************************Phlegm***********************************;
+PROC SORT DATA=work.Phlegm;
+BY cannabis;
+RUN;
+PROC MEANS DATA=work.Phlegm;
+BY cannabis;
+VAR HavePhlegm_P1 HavePhlegm_P2 HavePhlegm_P3;
+RUN;
+
+PROC FREQ Data= work.Phlegm;
+	FORMAT Cannabis;
+	TABLE cannabis * Phlegm / missing chisq relrisk;
+	RUN;
+*Odds ratio of phlegm production is 0.9077 with 95% confidence interval of 0.72 to 1.14 not significant (p=0.4110);
+
+DATA WORK.SGRQ;
+SET WORK.CANNABIS;
+	IF SGRQ_ScoreTotal_P1 = '.' THEN 	DELETE;
+	RUN;
+DATA WORK.sgrq;
+SET WORK.sgrq;
+	IF SGRQ_ScoreTotal_P2 = '.' THEN 	DELETE;
+	RUN;
+DATA WORK.sgrq;
+SET WORK.sgrq;
+	IF SGRQ_ScoreTotal_P3 = '.' THEN 	DELETE;
+	RUN;
+
+
+Data work.sgrq;
+set work.sgrq;
+	SGRQ = (SGRQ_ScoreTotal_P1 + SGRQ_ScoreTotal_P2 + SGRQ_ScoreTotal_P3) / 3 ;
+	RUN;
+
+PROC SORT DATA=work.sgrq;
+BY cannabis;
+RUN;
+PROC glm DATA=work.sgrq;
+class cannabis;
+model sgrq = cannabis  /solution;
+lsmeans cannabis /stderr;
+RUN;
+	
+*In patients who have cannabis metabolites in their system, 
+what is the effect on airway thickness from visit 1 to visit 3? 
+adjusting for age, current smoking, pack years, and race.;
+
+PROC GLM DATA = work.cannabis ; 
+*CLASS Cannabis SmokCigNow_P1 race; 
+MODEL AWT_Seg_Thirona_P1 AWT_Seg_Thirona_P2 AWT_Seg_Thirona_P3 = Cannabis SmokCigNow_P1 sex Age_P1/ nouni solution; 
+*REPEATED Thickness 3 / PRINTE ; 
+*LSMEANS Cannabis  /stderr ; 
+RUN ;
+
+
+ PROC GLM DATA=work.cannabis;
+ CLASS cannabis smokcignow_p1 sex ;
+ MODEL AWT_Seg_Thirona_P1 AWT_Seg_Thirona_P2 AWT_Seg_Thirona_P3  = Cannabis SmokCigNow_P1 sex Age_P1/solution
+ ;
+ repeated thick 3;
+ lsmeans cannabis smokcignow_p1 sex;
+ RUN;
+
+
+*Do people who have cannabis metabolites at visit 2 have worse pulmonary function 
+than non-cannabis users at visit 3 than they do at visit 1?
+adjusting for age, baseline pulmonary function, and ethnicity;
+
+PROC CORR DATA= work.cannabis;
+ VAR cannabis HaveCough_P2 SGRQ_ScoreTotal_P2;
+ RUN;
+
+
+data work.cannabis;
+set work.cannabis;
+AWTDiff = AWT_Seg_Thirona_P1 - AWT_Seg_Thirona_P3;
+RUN;
+
+PROC GLM DATA=cannabis;
+class cannabis smokcignow_p1 sex;
+model AWT_Seg_Thirona_P3 = Cannabis SmokCigNow_P1 sex age_p1 smokcignow_P1*Cannabis/solution;
+run;
+
+PROC GLM DATA=work.cannabis;
+ CLASS cannabis smokcignow_p1 sex ;
+ MODEL AWT_Seg_Thirona_P1 AWT_Seg_Thirona_P2 AWT_Seg_Thirona_P3  = Cannabis SmokCigNow_P1 sex Age_P1/solution
+ ;
+ repeated thick 3;
+ lsmeans cannabis smokcignow_p1 sex;
+ RUN;
+
+
